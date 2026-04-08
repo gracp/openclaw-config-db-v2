@@ -12,7 +12,9 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"db:generate": "drizzle-kit generate",
 		"db:push": "drizzle-kit push",
-		"db:seed": "tsx src/lib/db/seed.ts"
+		"db:seed": "tsx src/lib/db/seed.ts",
+		"crawl": "npx tsx scripts/crawl-github.ts",
+		"crawl:dry": "GITHUB_TOKEN= npx tsx scripts/crawl-github.ts"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^7.0.1",
