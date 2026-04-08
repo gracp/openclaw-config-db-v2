@@ -140,6 +140,6 @@
 
   <!-- Content -->
   <div class="overflow-auto max-h-[60vh]">
-    <pre class="p-4 text-sm leading-relaxed overflow-x-auto"><code>{@html highlighted}</code></pre>
+    <pre class="p-4 text-sm leading-relaxed overflow-x-auto text-foreground"><code class="text-foreground">{@html highlighted}</code></pre>
   </div>
 </div>

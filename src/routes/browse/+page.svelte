@@ -108,7 +108,7 @@
             placeholder="Search configs..."
             bind:value={searchValue}
             oninput={handleSearch}
-            class="w-full pl-10 pr-4 py-2.5 bg-card border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+            class="w-full pl-10 pr-4 py-2.5 bg-card border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all focus:shadow-[0_0_0_3px_rgba(99,102,241,0.25)]"
           />
         </div>
 
@@ -134,9 +134,9 @@
           {#each allTags as tag}
             <button
               onclick={() => toggleTag(tag)}
-              class="px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 {selectedTags.includes(tag)
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-accent/50 text-muted-foreground hover:bg-accent hover:text-foreground'}"
+              class="px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border {selectedTags.includes(tag)
+                ? 'bg-accent border-ring text-foreground'
+                : 'bg-accent/50 text-muted-foreground border-transparent hover:bg-accent hover:text-foreground'}"
             >
               {tag}
             </button>
@@ -184,7 +184,7 @@
               <button
                 onclick={() => goToPage(p)}
                 class="w-10 h-10 rounded-lg text-sm font-medium transition-all duration-200 {data.page === p
-                  ? 'bg-primary text-primary-foreground'
+                  ? 'bg-accent text-foreground ring-2 ring-ring'
                   : 'bg-accent/50 text-muted-foreground hover:bg-accent hover:text-foreground'}"
               >
                 {p}
