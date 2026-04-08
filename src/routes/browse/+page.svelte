@@ -11,19 +11,25 @@
   let { data } = $props();
 
   let searchValue = $state(data.search);
-  let selectedTags = $state<string[]>(data.tag ? [data.tag] : []);
+  let selectedTags = $state<string[]>(data.selectedTags || []);
+  let authorFilter = $state(data.author);
+  let complexityFilter = $state(data.complexity);
   let sortBy = $state(data.sortBy);
   let debounceTimer: ReturnType<typeof setTimeout>;
 
   const sortOptions = [
+    { value: "relevance", label: "Most Relevant" },
     { value: "created", label: "Newest" },
     { value: "stars", label: "Most Stars" },
     { value: "downloads", label: "Most Downloads" },
+    { value: "rating", label: "Highest Rated" },
   ];
 
   $effect(() => {
     searchValue = data.search;
-    selectedTags = data.tag ? [data.tag] : [];
+    selectedTags = data.selectedTags || [];
+    authorFilter = data.author;
+    complexityFilter = data.complexity;
     sortBy = data.sortBy;
   });
 
@@ -42,7 +48,23 @@
     } else {
       selectedTags = [...selectedTags, tag];
     }
-    updateUrl();
+    debouncedUpdate();
+  }
+
+  function toggleComplexity(level: string) {
+    if (complexityFilter === level) {
+      complexityFilter = "";
+    } else {
+      complexityFilter = level;
+    }
+    debouncedUpdate();
+  }
+
+  function debouncedUpdate() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      updateUrl();
+    }, 300);
   }
 
   function handleSortChange(e: Event) {
@@ -53,7 +75,12 @@
   function updateUrl() {
     const params = new URLSearchParams();
     if (searchValue) params.set("search", searchValue);
-    if (selectedTags.length > 0) params.set("tag", selectedTags[0]);
+    // Multi-tag: add each tag as separate param
+    for (const tag of selectedTags) {
+      params.append("tag", tag);
+    }
+    if (authorFilter) params.set("author", authorFilter);
+    if (complexityFilter) params.set("complexity", complexityFilter);
     if (sortBy !== "created") params.set("sortBy", sortBy);
     params.delete("page");
 
@@ -64,14 +91,18 @@
   function goToPage(p: number) {
     const params = new URLSearchParams();
     if (searchValue) params.set("search", searchValue);
-    if (selectedTags.length > 0) params.set("tag", selectedTags[0]);
+    for (const tag of selectedTags) {
+      params.append("tag", tag);
+    }
+    if (authorFilter) params.set("author", authorFilter);
+    if (complexityFilter) params.set("complexity", complexityFilter);
     if (sortBy !== "created") params.set("sortBy", sortBy);
     params.set("page", p.toString());
     goto(`/browse?${params}`, { keepFocus: true });
   }
 
   const totalPages = $derived(Math.ceil(data.total / 12) || 1);
-  const allTags = $derived(Object.values(data.tags).flat());
+  const allTags = $derived(Object.values(data.allTags).flat());
 </script>
 
 <svelte:head>
@@ -143,7 +174,7 @@
           {/each}
           {#if selectedTags.length > 0}
             <button
-              onclick={() => { selectedTags = []; updateUrl(); }}
+              onclick={() => { selectedTags = []; debouncedUpdate(); }}
               class="px-3 py-1.5 rounded-full text-sm font-medium text-muted-foreground hover:text-foreground transition-all"
             >
               Clear all
@@ -151,6 +182,35 @@
           {/if}
         </div>
       {/if}
+
+      <!-- Author & Complexity Filters -->
+      <div class="flex flex-wrap gap-4 items-center">
+        <!-- Author Filter -->
+        <div class="flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="Filter by author..."
+            bind:value={authorFilter}
+            oninput={debouncedUpdate}
+            class="px-3 py-1.5 bg-card border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+
+        <!-- Complexity Filter -->
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-muted-foreground">Complexity:</span>
+          <div class="flex gap-2">
+            {#each ['simple', 'moderate', 'complex'] as level}
+              <button
+                onclick={() => toggleComplexity(level)}
+                class="px-3 py-1 rounded-full text-xs font-medium transition-all {complexityFilter === level ? 'bg-accent border border-ring text-foreground' : 'bg-accent/50 text-muted-foreground hover:bg-accent hover:text-foreground'}"
+              >
+                {level}
+              </button>
+            {/each}
+          </div>
+        </div>
+      </div>
     </AnimatedSection>
 
     <!-- Results Grid -->
@@ -215,7 +275,7 @@
             Try adjusting your search or filters to find what you're looking for.
           </p>
           <div class="flex gap-3 justify-center">
-            <Button onclick={() => { searchValue = ""; selectedTags = []; updateUrl(); }}>
+            <Button onclick={() => { searchValue = ""; selectedTags = []; authorFilter = ""; complexityFilter = ""; updateUrl(); }}>
               Clear filters
             </Button>
             <Button href="/upload" variant="outline">Upload a Config</Button>

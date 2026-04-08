@@ -1,15 +1,18 @@
 import { db, configs, files, tags, configTags } from "$lib/db";
-import { eq, like, or, desc, sql, inArray } from "drizzle-orm";
+import { eq, like, or, and, desc, sql, inArray } from "drizzle-orm";
 import { generateId } from "$lib/utils/nanoid";
 import { autoClassify, classifyFileType } from "$lib/utils/classifier";
+import { computeComplexity } from "$lib/utils/config-analyzer";
 
 interface ConfigFilters {
   page?: number;
   limit?: number;
   search?: string;
-  tag?: string;
+  tags?: string[];
+  author?: string;
+  complexity?: "simple" | "moderate" | "complex";
   sourceType?: "github" | "upload" | "community";
-  sortBy?: "stars" | "downloads" | "created";
+  sortBy?: "stars" | "downloads" | "created" | "rating";
 }
 
 interface ConfigWithFiles {
@@ -43,80 +46,118 @@ export async function getAllConfigs(filters: ConfigFilters = {}) {
     page = 1,
     limit = 20,
     search,
-    tag,
+    tags: tagFilters,
+    author,
+    complexity,
     sourceType,
     sortBy = "created",
   } = filters;
 
   const offset = (page - 1) * limit;
 
-  let query = db.select().from(configs);
-  let countQuery = db.select({ count: sql<number>`count(*)` }).from(configs);
+  // Build base query with joins for tags
+  let query = db
+    .selectDistinct({ config: configs })
+    .from(configs)
+    .leftJoin(configTags, eq(configs.id, configTags.configId))
+    .leftJoin(tags, eq(configTags.tagId, tags.id))
+    .$dynamic();
 
+  // Text search across name, description, and author
   if (search) {
     const searchPattern = `%${search}%`;
     query = query.where(
       or(
         like(configs.name, searchPattern),
-        like(configs.description, searchPattern)
+        like(configs.description, searchPattern),
+        like(configs.author, searchPattern)
       )
-    ) as typeof query;
+    );
+  }
+
+  // Author filter
+  if (author) {
+    const authorPattern = `%${author}%`;
+    query = query.where(like(configs.author, authorPattern));
+  }
+
+  // Multi-tag filter (configs matching ANY of the selected tags)
+  if (tagFilters && tagFilters.length > 0) {
+    query = query.where(inArray(tags.name, tagFilters));
   }
 
   if (sourceType) {
-    query = query.where(eq(configs.sourceType, sourceType)) as typeof query;
+    query = query.where(eq(configs.sourceType, sourceType));
   }
 
-  if (tag) {
-    const tagRecord = await db.select().from(tags).where(like(tags.name, `%${tag}%`)).limit(1);
-    if (tagRecord.length > 0) {
-      const configIdsWithTag = await db
-        .select({ configId: configTags.configId })
-        .from(configTags)
-        .where(eq(configTags.tagId, tagRecord[0].id));
-      const ids = configIdsWithTag.map(c => c.configId);
-      if (ids.length > 0) {
-        query = query.where(inArray(configs.id, ids)) as typeof query;
-      }
-    }
-  }
-
+  // Sort options
   switch (sortBy) {
     case "stars":
-      query = query.orderBy(desc(configs.stars)) as typeof query;
+      query = query.orderBy(desc(configs.stars));
       break;
     case "downloads":
-      query = query.orderBy(desc(configs.downloads)) as typeof query;
+      query = query.orderBy(desc(configs.downloads));
+      break;
+    case "rating":
+      query = query.orderBy(desc(configs.ratingAvg));
       break;
     case "created":
     default:
-      query = query.orderBy(desc(configs.createdAt)) as typeof query;
+      query = query.orderBy(desc(configs.createdAt));
   }
 
-  query = query.limit(limit).offset(offset) as typeof query;
+  query = query.limit(limit).offset(offset);
 
-  const results = await query;
+  const rawResults = await query;
 
-  const configsWithTags = await Promise.all(
-    results.map(async (config) => {
+  // Get unique configs
+  const configIds = [...new Set(rawResults.map(r => r.config.id))];
+
+  if (configIds.length === 0) {
+    return { configs: [], page, limit, total: 0 };
+  }
+
+  // Fetch full config data with files for complexity calculation
+  const fullConfigs = await Promise.all(
+    configIds.map(async (id) => {
+      const config = rawResults.find(r => r.config.id === id)?.config;
+      if (!config) return null;
+
+      const fileResults = await db
+        .select()
+        .from(files)
+        .where(eq(files.configId, id));
+
       const configTagRecords = await db
         .select({ tagName: tags.name })
         .from(configTags)
         .innerJoin(tags, eq(configTags.tagId, tags.id))
-        .where(eq(configTags.configId, config.id));
+        .where(eq(configTags.configId, id));
+
+      const tagNames = configTagRecords.map(t => t.tagName);
+      const skillCount = fileResults.filter(f => f.fileType === "skill" || f.filename.endsWith("SKILL.md")).length;
+      const computedComplexity = computeComplexity({ files: fileResults, skills: skillCount });
 
       return {
         ...config,
-        tags: configTagRecords.map(t => t.tagName),
+        tags: tagNames,
+        fileCount: fileResults.length,
+        _complexity: computedComplexity,
       };
     })
   );
 
+  // Filter by complexity if specified
+  let filteredConfigs = fullConfigs.filter(c => c !== null);
+  if (complexity) {
+    filteredConfigs = filteredConfigs.filter(c => c!._complexity === complexity);
+  }
+
   return {
-    configs: configsWithTags,
+    configs: filteredConfigs,
     page,
     limit,
-    total: results.length,
+    total: filteredConfigs.length,
   };
 }
 
@@ -262,16 +303,22 @@ export async function incrementDownloads(id: string) {
     .where(eq(configs.id, id));
 }
 
-export async function searchConfigs(query: string) {
+export async function searchConfigs(
+  query: string,
+  options: { tags?: string[]; author?: string; sortBy?: "stars" | "downloads" | "created" | "rating" } = {}
+) {
+  const { tags: tagFilters, author, sortBy = "created" } = options;
   const searchPattern = `%${query}%`;
 
+  // Search in configs (name, description, author) and files (content)
   const matchingConfigs = await db
     .select()
     .from(configs)
     .where(
       or(
         like(configs.name, searchPattern),
-        like(configs.description, searchPattern)
+        like(configs.description, searchPattern),
+        like(configs.author, searchPattern)
       )
     );
 
@@ -292,12 +339,64 @@ export async function searchConfigs(query: string) {
     return [];
   }
 
-  const results = await db
-    .select()
+  // Build query with filters
+  let results = db
+    .selectDistinct({ config: configs })
     .from(configs)
-    .where(inArray(configs.id, allConfigIds));
+    .leftJoin(configTags, eq(configs.id, configTags.configId))
+    .leftJoin(tags, eq(configTags.tagId, tags.id))
+    .where(inArray(configs.id, allConfigIds))
+    .$dynamic();
 
-  return results;
+  // Apply tag filters
+  if (tagFilters && tagFilters.length > 0) {
+    results = results.where(inArray(tags.name, tagFilters));
+  }
+
+  // Apply author filter
+  if (author) {
+    results = results.where(like(configs.author, `%${author}%`));
+  }
+
+  // Apply sorting
+  switch (sortBy) {
+    case "stars":
+      results = results.orderBy(desc(configs.stars));
+      break;
+    case "downloads":
+      results = results.orderBy(desc(configs.downloads));
+      break;
+    case "rating":
+      results = results.orderBy(desc(configs.ratingAvg));
+      break;
+    case "created":
+    default:
+      results = results.orderBy(desc(configs.createdAt));
+  }
+
+  const rawResults = await results;
+  const uniqueIds = [...new Set(rawResults.map(r => r.config.id))];
+
+  const fullResults = await Promise.all(
+    uniqueIds.map(async (id) => {
+      const config = rawResults.find(r => r.config.id === id)?.config;
+      if (!config) return null;
+
+      const fileResults = await db.select().from(files).where(eq(files.configId, id));
+      const configTagRecords = await db
+        .select({ tagName: tags.name })
+        .from(configTags)
+        .innerJoin(tags, eq(configTags.tagId, tags.id))
+        .where(eq(configTags.configId, id));
+
+      return {
+        ...config,
+        tags: configTagRecords.map(t => t.tagName),
+      };
+    })
+  );
+
+  return fullResults.filter(c => c !== null);
 }
 
 export async function getAllTags() {
