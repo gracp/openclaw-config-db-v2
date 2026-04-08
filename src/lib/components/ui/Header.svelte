@@ -22,7 +22,7 @@
   }
 </script>
 
-<header class="sticky top-0 z-50 glass border-b border-border">
+<header class="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b border-border">
   <Container>
     <nav class="flex items-center justify-between h-16">
       <!-- Logo -->

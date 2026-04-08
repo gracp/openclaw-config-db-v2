@@ -54,7 +54,7 @@
   let animationComplete = $state(false);
 
   function animateCounters() {
-    const duration = 1500;
+    const duration = 800;
     const startTime = performance.now();
     const easeOutQuart = (t: number) => 1 - Math.pow(1 - t, 4);
 
@@ -82,7 +82,7 @@
   class={cn("grid gap-4", gridCols[columns], className)}
 >
   {#each stats as stat, i}
-    <div class="bg-card border border-border rounded-xl p-4 md:p-6 text-center group hover:border-muted-foreground/50 transition-all duration-300 hover:-translate-y-1">
+    <div class="bg-card border border-border rounded-xl p-4 md:p-6 text-center group hover:border-muted-foreground/50 transition-all duration-150 hover:-translate-y-1 hover:shadow-[0_0_0_1px_rgba(99,102,241,0.3)]">
       {#if stat.icon}
         <div class="text-3xl mb-2">{stat.icon}</div>
       {/if}

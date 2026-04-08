@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { browser } from "$app/environment";
   import { cn } from "$lib/utils/helpers";
+  import { tick } from "svelte";
 
   interface Props {
     class?: string;
@@ -18,7 +19,7 @@
     delay = 0,
     animEffect = "fade-up",
     stagger = false,
-    staggerDelay = 100,
+    staggerDelay = 50,
     threshold = 0.1,
     once = true,
     children,
@@ -26,35 +27,13 @@
 
   let element: HTMLDivElement;
   let visible = $state(false);
-  let hasAnimated = $state(false);
-
-  onMount(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            if (once && hasAnimated) return;
-            visible = true;
-            hasAnimated = true;
-            if (once) observer.unobserve(entry.target);
-          } else if (!once) {
-            visible = false;
-          }
-        });
-      },
-      { threshold }
-    );
-
-    observer.observe(element);
-
-    return () => observer.disconnect();
-  });
+  let hydrated = $state(false);
 
   const effectsMap: Record<string, string> = {
-    "fade-up": "opacity-0 translate-y-6",
+    "fade-up": "opacity-0 translate-y-3",
     "fade-in": "opacity-0",
-    "slide-left": "opacity-0 -translate-x-8",
-    "scale": "opacity-0 scale-95",
+    "slide-left": "opacity-0 -translate-x-4",
+    "scale": "opacity-0 scale-[0.98]",
   };
 
   const effectsActiveMap: Record<string, string> = {
@@ -65,16 +44,48 @@
   };
 
   const transitionsMap: Record<string, string> = {
-    "fade-up": "transition-all duration-700 ease-out",
-    "fade-in": "transition-all duration-500 ease-out",
-    "slide-left": "transition-all duration-600 ease-out",
-    "scale": "transition-all duration-500 ease-out",
+    "fade-up": "transition-all duration-300 ease-out",
+    "fade-in": "transition-all duration-200 ease-out",
+    "slide-left": "transition-all duration-300 ease-out",
+    "scale": "transition-all duration-200 ease-out",
   };
 
+  // SSR: show content visible. Client: animate in via IntersectionObserver
   const initialClass = $derived(
-    visible ? effectsActiveMap[animEffect] : effectsMap[animEffect]
+    !hydrated || visible
+      ? effectsActiveMap[animEffect]
+      : effectsMap[animEffect]
   );
-  const transitionClass = $derived(transitionsMap[animEffect]);
+  const transitionClass = $derived(
+    hydrated ? transitionsMap[animEffect] : ""
+  );
+
+  $effect(() => {
+    if (!browser || !element) return;
+
+    hydrated = true;
+
+    // Force DOM update so the hidden state is painted first
+    tick().then(() => {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              visible = true;
+              if (once) observer.unobserve(entry.target);
+            } else if (!once) {
+              visible = false;
+            }
+          }
+        },
+        { threshold }
+      );
+
+      observer.observe(element);
+
+      return () => observer.disconnect();
+    });
+  });
 </script>
 
 <div
@@ -82,10 +93,11 @@
   class={cn(
     initialClass,
     transitionClass,
-    stagger && "[&>[data-stagger-item]]:opacity-0 [&>[data-stagger-item]]:translate-y-4",
+    "motion-reduce:transition-none motion-reduce:opacity-100 motion-reduce:translate-y-0 motion-reduce:scale-100",
+    stagger && "[&>[data-stagger-item]]:opacity-0 [&>[data-stagger-item]]:translate-y-2",
     className
   )}
-  style={delay ? `transition-delay: ${delay}ms` : ""}
+  style={delay && hydrated ? `transition-delay: ${delay}ms` : ""}
 >
   {@render children?.()}
 </div>

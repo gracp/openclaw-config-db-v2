@@ -1,5 +1,6 @@
 <script lang="ts">
   import { cn } from "$lib/utils/helpers";
+  import { Folder, FolderOpen, FileText, FileCode, FileJson, File, FileType } from "lucide-svelte";
 
   interface FileNode {
     name: string;
@@ -39,26 +40,23 @@
     return expandedFolders.has(path);
   }
 
-  function getFileIcon(filename: string): string {
+  function getFileIcon(filename: string): any {
     const ext = filename.split(".").pop()?.toLowerCase() || "";
-    const iconMap: Record<string, string> = {
-      md: "📝",
-      svelte: "✨",
-      ts: "📘",
-      js: "📒",
-      json: "📋",
-      css: "🎨",
-      html: "🌐",
-      svg: "🖼️",
-      png: "🖼️",
-      jpg: "🖼️",
-      yml: "⚙️",
-      yaml: "⚙️",
-      sh: "🔧",
-      zsh: "🔧",
-      bash: "🔧",
+    const iconMap: Record<string, any> = {
+      md: FileText,
+      svelte: FileCode,
+      ts: FileType,
+      js: FileCode,
+      json: FileJson,
+      css: FileCode,
+      html: FileCode,
+      yml: FileCode,
+      yaml: FileCode,
+      sh: FileCode,
+      zsh: FileCode,
+      bash: FileCode,
     };
-    return iconMap[ext] || "📄";
+    return iconMap[ext] || File;
   }
 
   function handleFileClick(node: FileNode, parentPath: string = "") {
@@ -201,9 +199,7 @@
                             onclick={() => grandchild.content && onselect?.({ name: grandchild.name, content: grandchild.content })}
                             class="w-full flex items-center gap-2 py-1.5 px-2 rounded transition-all duration-150 text-left group {selectedFile === grandchild.name ? 'bg-accent text-foreground' : 'hover:bg-accent/50'}"
                           >
-                            <span class="text-muted-foreground group-hover:text-foreground transition-colors w-4">
-                              {getFileIcon(grandchild.name)}
-                            </span>
+                            <svelte:component this={getFileIcon(grandchild.name)} size={16} class="text-muted-foreground" />
                             <span class="{selectedFile === grandchild.name ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'} flex-1 truncate">
                               {grandchild.name}
                             </span>
@@ -218,9 +214,7 @@
                   onclick={() => child.content && onselect?.({ name: child.name, content: child.content })}
                   class="w-full flex items-center gap-2 py-1.5 px-2 rounded transition-all duration-150 text-left group {selectedFile === child.name ? 'bg-accent text-foreground' : 'hover:bg-accent/50'}"
                 >
-                  <span class="text-muted-foreground group-hover:text-foreground transition-colors w-4">
-                    {getFileIcon(child.name)}
-                  </span>
+                  <svelte:component this={getFileIcon(child.name)} size={16} class="text-muted-foreground" />
                   <span class="{selectedFile === child.name ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'} flex-1 truncate">
                     {child.name}
                   </span>
@@ -238,9 +232,7 @@
         onclick={() => node.content && onselect?.({ name: node.name, content: node.content })}
         class="w-full flex items-center gap-2 py-1.5 px-2 rounded transition-all duration-150 text-left group {selectedFile === node.name ? 'bg-accent text-foreground' : 'hover:bg-accent/50'}"
       >
-        <span class="text-muted-foreground group-hover:text-foreground transition-colors w-4">
-          {getFileIcon(node.name)}
-        </span>
+        <svelte:component this={getFileIcon(node.name)} size={16} class="text-muted-foreground" />
         <span class="{selectedFile === node.name ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'} flex-1 truncate">
           {node.name}
         </span>

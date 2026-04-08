@@ -16,8 +16,8 @@
 
 <div
   class={cn(
-    "bg-card border border-border rounded-xl p-6 transition-all duration-300",
-    hover && "hover:-translate-y-1 hover:shadow-lg hover:shadow-black/20 hover:border-muted-foreground/50 hover:glow",
+    "bg-card border border-border rounded-xl p-6 transition-all duration-150",
+    hover && "hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20 hover:border-muted-foreground/50 hover:glow",
     className
   )}
 >

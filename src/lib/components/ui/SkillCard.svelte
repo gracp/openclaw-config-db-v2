@@ -39,10 +39,10 @@
   }
 </script>
 
-<div class={cn("bg-card border border-border rounded-xl overflow-hidden transition-all duration-300", expanded && "shadow-lg shadow-black/20", className)}>
+<div class={cn("bg-card border border-border rounded-xl overflow-hidden transition-all duration-150", expanded && "shadow-lg shadow-black/20", className)}>
   <button
     onclick={toggleExpanded}
-    class="w-full flex items-center gap-3 p-4 text-left hover:bg-accent/30 transition-all duration-200 group"
+    class="w-full flex items-center gap-3 p-4 text-left hover:bg-accent/30 transition-all duration-150 group"
   >
     <span class="text-2xl">{getIcon(skill.category)}</span>
     <div class="flex-1 min-w-0">

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { Star } from "lucide-svelte";
   import Container from "$lib/components/ui/Container.svelte";
   import Button from "$lib/components/ui/Button.svelte";
   import Badge from "$lib/components/ui/Badge.svelte";
@@ -18,6 +19,11 @@
   let sections: HTMLElement[] = [];
 
   const config = $derived(data.config);
+  
+  // Rating state - use local copy for reactive updates
+  let displayConfig = $state({ ...data.config });
+  let userRating = $state<number | null>(null);
+  let isSubmitting = $state(false);
   const skills = $derived(data.skills);
   const fileTree = $derived(data.fileTree);
   const agentIdentity = $derived(data.agentIdentity);
@@ -53,6 +59,12 @@
   ]);
 
   onMount(() => {
+    // Load user rating from localStorage
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem(`rating-${data.config.id}`);
+      userRating = saved ? parseInt(saved, 10) || null : null;
+    }
+    
     sections = navSections.map((s) => document.getElementById(s.id)!);
 
     const observer = new IntersectionObserver(
@@ -96,6 +108,29 @@
       day: "numeric",
     });
   }
+  
+  async function submitRating(rating: number) {
+    if (isSubmitting) return;
+    isSubmitting = true;
+    try {
+      const res = await fetch(`/api/configs/${data.config.id}/rate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating })
+      });
+      if (res.ok) {
+        userRating = rating;
+        localStorage.setItem(`rating-${data.config.id}`, rating.toString());
+        const result = await res.json();
+        displayConfig.ratingAvg = result.ratingAvg;
+        displayConfig.ratingCount = result.ratingCount;
+      }
+    } catch (e) {
+      console.error('Failed to submit rating', e);
+    } finally {
+      isSubmitting = false;
+    }
+  }
 </script>
 
 <svelte:head>
@@ -113,7 +148,7 @@
         aria-label={section.label}
       >
         <div
-          class="w-2 h-2 rounded-full transition-all duration-300 {activeSection === i
+          class="w-3 h-3 rounded-full transition-all duration-300 {activeSection === i
             ? 'bg-primary scale-125'
             : 'bg-muted-foreground/30 group-hover:bg-muted-foreground/60'}"
         ></div>
@@ -166,7 +201,7 @@
         </div>
 
         <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold mb-4">
-          <span class="gradient-text">{config.name}</span>
+          {config.name}
         </h1>
 
         {#if config.description}
@@ -190,6 +225,15 @@
             <span class="font-semibold">{config.downloads.toLocaleString()}</span>
             <span class="text-muted-foreground">downloads</span>
           </div>
+          {#if displayConfig.ratingCount > 0}
+            <div class="flex items-center gap-2">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="text-yellow-400">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              <span class="font-semibold">{displayConfig.ratingAvg.toFixed(1)}</span>
+              <span class="text-muted-foreground">({displayConfig.ratingCount} ratings)</span>
+            </div>
+          {/if}
           {#if config.sourceUrl}
             <a
               href={config.sourceUrl}
@@ -311,45 +355,8 @@
           </Card>
         </AnimatedSection>
 
-        <!-- Architecture Diagram -->
-        <AnimatedSection animEffect="fade-up" delay={200}>
-          <Card class="h-full">
-            <h3 class="font-semibold text-lg mb-4">Architecture</h3>
-            <div class="flex flex-col gap-3">
-              <!-- Root level -->
-              <div class="flex items-center gap-3 p-3 bg-accent/30 rounded-lg border border-border">
-                <div class="w-8 h-8 rounded bg-primary/20 flex items-center justify-center text-sm">📁</div>
-                <div>
-                  <div class="font-medium text-sm">Root Workspace</div>
-                  <div class="text-xs text-muted-foreground">{config.name}</div>
-                </div>
-              </div>
+        <!-- Architecture section removed - file tree above shows structure -->
 
-              <!-- Arrow -->
-              <div class="flex justify-center">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-muted-foreground">
-                  <path d="M12 5v14M5 12l7 7 7-7"/>
-                </svg>
-              </div>
-
-              <!-- Config files -->
-              <div class="grid grid-cols-2 gap-3">
-                {#each [
-                  { icon: "⚙️", label: "Config", count: config.files.filter(f => f.fileType === "config").length },
-                  { icon: "✨", label: "Skills", count: config.files.filter(f => f.fileType === "skill").length },
-                  { icon: "📝", label: "Workspace", count: config.files.filter(f => f.fileType === "workspace").length },
-                  { icon: "📄", label: "Other", count: config.files.filter(f => f.fileType === "other").length },
-                ] as item}
-                  <div class="p-3 bg-accent/20 rounded-lg border border-border/50 text-center">
-                    <div class="text-xl mb-1">{item.icon}</div>
-                    <div class="text-sm font-medium">{item.label}</div>
-                    <div class="text-xs text-muted-foreground">{item.count} files</div>
-                  </div>
-                {/each}
-              </div>
-            </div>
-          </Card>
-        </AnimatedSection>
       </div>
     </Container>
   </section>
@@ -363,7 +370,7 @@
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {#each skills as skill, i}
-          <AnimatedSection animEffect="fade-up" delay={i * 80}>
+          <AnimatedSection animEffect="fade-up" delay={i * 50}>
             <SkillCard {skill} />
           </AnimatedSection>
         {/each}
@@ -405,6 +412,34 @@
           </Card>
         </AnimatedSection>
 
+        <!-- Interactive Rating Widget -->
+        <AnimatedSection animEffect="fade-up" delay={150}>
+          <Card class="mt-6">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div>
+                <p class="text-sm text-muted-foreground mb-2">Rate this config:</p>
+                <div class="flex items-center gap-1" id="rating-widget">
+                  {#each [1, 2, 3, 4, 5] as star}
+                    <button
+                      onclick={() => submitRating(star)}
+                      class="p-1 hover:scale-110 transition-transform disabled:opacity-50"
+                      aria-label="Rate {star} stars"
+                      disabled={isSubmitting}
+                    >
+                      <Star
+                        class="w-6 h-6 transition-colors {userRating !== null && userRating >= star ? 'text-yellow-400 fill-yellow-400' : 'text-muted hover:text-yellow-300'}"
+                      />
+                    </button>
+                  {/each}
+                  {#if userRating}
+                    <span class="text-sm text-muted-foreground ml-2">You rated: {userRating}★</span>
+                  {/if}
+                </div>
+              </div>
+            </div>
+          </Card>
+        </AnimatedSection>
+        
         <AnimatedSection animEffect="fade-up" delay={200}>
           <div class="flex flex-col sm:flex-row gap-4">
             <Button href="/api/configs/{config.id}/download" size="lg" class="flex-1 sm:flex-none">
