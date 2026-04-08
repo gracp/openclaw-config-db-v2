@@ -419,6 +419,16 @@ export function detectChannels(files: ConfigFile[]): string[] {
 }
 
 export type Complexity = "beginner" | "intermediate" | "advanced";
+export type SimpleComplexity = "simple" | "moderate" | "complex";
+
+export function computeComplexity(config: { files: { length: number }; skills: number }): SimpleComplexity {
+  const fileCount = config.files?.length || 0;
+  const skillCount = config.skills || 0;
+  
+  if (fileCount <= 5 && skillCount <= 3) return "simple";
+  if (fileCount <= 15 && skillCount <= 8) return "moderate";
+  return "complex";
+}
 
 export function detectComplexity(files: ConfigFile[]): Complexity {
   const count = files.length;

@@ -12,15 +12,19 @@ export const GET: RequestHandler = async ({ url }) => {
     if (limit > 100) limit = 100;
     
     const search = url.searchParams.get("search") || undefined;
-    const tag = url.searchParams.get("tag") || undefined;
+    const tagParams = url.searchParams.getAll("tag");
+    const author = url.searchParams.get("author") || undefined;
+    const complexity = url.searchParams.get("complexity") as "simple" | "moderate" | "complex" | undefined;
     const sourceType = url.searchParams.get("sourceType") as "github" | "upload" | "community" | undefined;
-    const sortBy = url.searchParams.get("sortBy") as "stars" | "downloads" | "created" || "created";
+    const sortBy = url.searchParams.get("sortBy") as "stars" | "downloads" | "created" | "rating" || "created";
     
     const result = await getAllConfigs({
       page,
       limit,
       search,
-      tag,
+      tags: tagParams.length > 0 ? tagParams : undefined,
+      author,
+      complexity,
       sourceType,
       sortBy,
     });
