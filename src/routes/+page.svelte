@@ -23,12 +23,12 @@
   let featuredConfigs: Config[] = $state([]);
   let loading = $state(true);
 
-  const stats = [
-    { label: "Configs", value: 14, icon: "📦" },
-    { label: "Files", value: 96, icon: "📄" },
-    { label: "Tags", value: 9, icon: "🏷️" },
-    { label: "Sources", value: 11, icon: "🌐" },
-  ];
+  // Stats will be loaded from API on mount
+  let stats = $state([
+    { label: "Configs", value: 0, icon: "" },
+    { label: "Tags", value: 0, icon: "" },
+    { label: "Sources", value: 0, icon: "" },
+  ]);
 
   const steps = [
     {
@@ -53,7 +53,30 @@
 
   $effect(() => {
     loadFeatured();
+    loadStats();
   });
+
+  async function loadStats() {
+    try {
+      const res = await fetch("/api/configs?limit=1000");
+      const data = await res.json();
+      if (data.configs) {
+        const allTags = new Set<string>();
+        const sources = new Set<string>();
+        data.configs.forEach((c: any) => {
+          c.tags?.forEach((t: string) => allTags.add(t));
+          sources.add(c.sourceType);
+        });
+        stats = [
+          { label: "Configs", value: data.total || data.configs.length, icon: "" },
+          { label: "Tags", value: allTags.size, icon: "" },
+          { label: "Sources", value: sources.size, icon: "" },
+        ];
+      }
+    } catch (err) {
+      console.error("Failed to load stats:", err);
+    }
+  }
 
   async function loadFeatured() {
     try {
@@ -78,7 +101,7 @@
 </svelte:head>
 
 <!-- Hero Section -->
-<section class="relative min-h-[80vh] flex items-center overflow-hidden gradient-mesh">
+<section class="relative min-h-[60vh] flex items-center overflow-hidden gradient-mesh">
   <Container class="relative z-10 py-20">
     <div class="max-w-4xl mx-auto text-center">
       <AnimatedSection animEffect="fade-up">
@@ -111,23 +134,13 @@
         </div>
       </AnimatedSection>
 
-      <!-- Floating particles decoration -->
-      <div class="absolute inset-0 overflow-hidden pointer-events-none">
-        {#each Array(6) as _, i}
-          <div
-            class="absolute w-2 h-2 rounded-full bg-primary/20 animate-pulse"
-            style="left: {15 + i * 15}%; top: {20 + (i % 3) * 25}%; animation-delay: {i * 0.5}s;"
-          ></div>
-        {/each}
-      </div>
+
     </div>
   </Container>
 
   <!-- Gradient fade to background -->
   <div class="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent"></div>
 </section>
-
-<!-- Stats Bar -->
 <section class="py-12 border-y border-border bg-card/30">
   <Container>
     <AnimatedSection animEffect="fade-up">
@@ -186,45 +199,7 @@
   </Container>
 </section>
 
-<!-- How It Works -->
-<section class="py-20 border-t border-border">
-  <Container>
-    <AnimatedSection animEffect="fade-up">
-      <div class="text-center mb-16">
-        <h2 class="text-3xl md:text-4xl font-bold mb-3">How It Works</h2>
-        <p class="text-muted-foreground text-lg">Three simple steps to find your perfect agent configuration</p>
-      </div>
-    </AnimatedSection>
-
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-      {#each steps as step, i}
-        <AnimatedSection animEffect="fade-up" delay={i * 150}>
-          <Card class="relative h-full text-center group hover:border-primary/50 transition-all duration-300">
-            <!-- Step number -->
-            <div class="absolute -top-4 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg shadow-lg">
-              {step.number}
-            </div>
-
-            <div class="pt-8">
-              <div class="text-5xl mb-4">{step.icon}</div>
-              <h3 class="text-xl font-semibold mb-3">{step.title}</h3>
-              <p class="text-muted-foreground">{step.description}</p>
-            </div>
-
-            <!-- Connector arrow (not on last) -->
-            {#if i < steps.length - 1}
-              <div class="hidden md:block absolute top-1/2 -right-4 transform -translate-y-1/2 text-muted-foreground/30">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M5 12h14M12 5l7 7-7 7"/>
-                </svg>
-              </div>
-            {/if}
-          </Card>
-        </AnimatedSection>
-      {/each}
-    </div>
-  </Container>
-</section>
+    <!-- How It Works section removed per design review -->
 
 <!-- CTA Section -->
 <section class="py-24 border-t border-border relative overflow-hidden">

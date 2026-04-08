@@ -2,6 +2,7 @@
   import { cn } from "$lib/utils/helpers";
   import Badge from "./Badge.svelte";
   import Card from "./Card.svelte";
+  import { Star, StarHalf } from "lucide-svelte";
 
   interface Config {
     id: string;
@@ -10,6 +11,8 @@
     author?: string | null;
     stars: number;
     downloads: number;
+    ratingAvg?: number;
+    ratingCount?: number;
     tags: string[];
     sourceType: "github" | "upload" | "community";
     isFeatured?: boolean;
@@ -46,7 +49,7 @@
   style="animation-delay: {index * 80}ms"
   data-stagger-item
 >
-  <Card hover class={cn("h-full relative overflow-hidden", className)}>
+  <Card hover class={cn("h-full relative overflow-hidden hover:shadow-[0_0_0_1px_rgba(99,102,241,0.4),0_8px_24px_rgba(99,102,241,0.12)]", className)}>
     {#if config.isFeatured}
       <div class="absolute top-0 right-0 px-3 py-1 bg-gradient-to-r from-primary/20 to-transparent rounded-bl-lg">
         <Badge variant="success">Featured</Badge>
@@ -69,6 +72,27 @@
         <h3 class="font-semibold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-1">
           {config.name}
         </h3>
+        
+        <!-- Star Rating Display -->
+        <div class="flex items-center gap-1 mt-1">
+          {#if (config.ratingCount ?? 0) > 0}
+            {@const fullStars = Math.floor(config.ratingAvg ?? 0)}
+            {@const hasHalf = (config.ratingAvg ?? 0) - fullStars >= 0.5}
+            {#each Array(5) as _, i}
+              {#if i < fullStars}
+                <Star class="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
+              {:else if i === fullStars && hasHalf}
+                <StarHalf class="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
+              {:else}
+                <Star class="w-3.5 h-3.5 text-muted" />
+              {/if}
+            {/each}
+            <span class="text-xs text-muted-foreground ml-1">({config.ratingCount})</span>
+          {:else}
+            <span class="text-xs text-muted-foreground">No ratings yet</span>
+          {/if}
+        </div>
+        
         {#if config.description}
           <p class="text-sm text-muted-foreground mt-1 line-clamp-2">{config.description}</p>
         {/if}
@@ -114,7 +138,7 @@
       </div>
 
       <!-- View Arrow (shows on hover) -->
-      <div class="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-x-2 group-hover:translate-x-0">
+      <div class="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-all duration-150 transform translate-x-1 group-hover:translate-x-0 group-hover:scale-110">
         <span class="text-primary text-sm font-medium flex items-center gap-1">
           View
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

@@ -40,7 +40,7 @@
 <style>
   :global(::view-transition-old(root)),
   :global(::view-transition-new(root)) {
-    animation-duration: 0.3s;
+    animation-duration: 150ms;
     animation-timing-function: ease-out;
   }
 
